@@ -64,6 +64,16 @@ Each run produces:
 
 ---
 
+## 🧪 Sample Data
+
+This repo includes two sample Excel files to demonstrate the pipeline:
+- `sample_data_invoice.xlsx`: Contains 5 fake invoice lines across contracts and sources
+- `sample_data_mmp_ref.xlsx`: A mock MMP reference table with allocation percentages
+
+These can be used to test the script and understand the expected format.
+
+
+
 ## ⚠️ Disclaimer
 
 This project contains **sample data only** and does not expose any real vendors, contracts, or PHI. All logic and structure are generic and anonymized for demonstration purposes.
