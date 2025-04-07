@@ -172,3 +172,16 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+
+# Ignore Excel and CSV data files
+*.xlsx
+*.xls
+*.csv
+
+# Ignore raw and processed data folders
+PeopleSoft_Invoice_Reports/raw_data/
+PeopleSoft_Invoice_Reports/processed_reports/
+
+# Optional: ignore any backup or temp files
+~$*
