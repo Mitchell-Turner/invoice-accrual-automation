@@ -129,7 +129,7 @@ The script categorizes invoices based on the following rules:
 ## Usage Instructions
 
 ```bash
-python peoplesoft_invoice_processor.py
+python Run_Invoice_Report.py
 ```
 
 This will:
