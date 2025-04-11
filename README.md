@@ -1,84 +1,92 @@
 # Invoice Accrual Automation
 
-<img src="https://via.placeholder.com/1200x300?text=Invoice+Accrual+Automation" alt="Project Banner" width="100%">
+## Overview
 
-A robust Python solution that automates the monthly processing of PeopleSoft invoice exports for Medicare accruals. This tool classifies invoices, applies sophisticated business logic, flags outliers, and generates fully formatted, audit-ready Excel reports with visualizations.
+This project automates the monthly processing of PeopleSoft invoice exports for Medicare accruals. It classifies invoices, applies business logic, flags outliers, and generates fully formatted, audit-ready Excel reports.
 
-Additionally, it calculates MMP (Medicare-Medicaid Plan) reclass allocations from a reference table, since MMP costs are embedded in Medicare invoices and not explicitly separated in the source data.
+Additionally, it calculates MMP (Medicare-Medicaid Plan) reclass allocations from a reference table, since MMP costs are embedded in Medicare invoices and not explicitly separated.
 
-## ✨ Features
+## Features
 
-| Feature | Description |
-|---------|-------------|
-| 🔍 **Automatic Detection** | Locates and processes the latest PeopleSoft export file |
-| 🏷️ **Smart Classification** | Labels invoice rows based on source, contract, and amount |
-| ⚠️ **Quality Control** | Identifies duplicate invoices and statistical outliers |
-| 📊 **Cost Analysis** | Summarizes invoice costs by category with visualizations |
-| 💰 **MMP Allocation** | Calculates reclass values from reference percentages |
-| 📑 **Professional Reports** | Generates formatted Excel workbooks with multiple sheets |
+- **Automated Data Processing**: Finds and processes the most recent invoice data file
+- **Business Logic Implementation**: Applies complex categorization rules to invoice transactions
+- **Anomaly Detection**: Identifies potential duplicates and outliers in invoice data
+- **Cost Summarization**: Aggregates and visualizes invoice costs by category
+- **MMP Reallocation**: Calculates reclass allocations based on reference percentages
+- **Rich Excel Output**: Generates professionally formatted Excel reports with multiple sheets
 
-## 📂 Project Structure
+## System Components
+
+### 1. Invoice Processor
+
+The main script that performs all processing operations:
+
+- Reads the latest PeopleSoft export file from the raw_data directory
+- Normalizes and categorizes invoice data
+- Identifies statistical outliers and duplicates
+- Generates formatted summary reports with visualizations
+
+### 2. MMP Allocation Calculator
+
+A specialized component that handles MMP reclass calculations:
+
+- Takes "Charts & Coding" totals from the invoice processing
+- Applies allocation percentages from the reference file
+- Calculates adjusted and subset allocations
+- Creates a formatted allocation report with visualizations
+
+## Directory Structure
 
 ```
-PeopleSoft_Invoice_Reports/
-├── raw_data/                  # Place monthly PeopleSoft exports here
-├── processed_reports/         # Output reports organized by month
-│   └── YYYY_MM/               # Month-specific output folders
-│       ├── Invoice_Report_YYYY_MM.xlsx
-│       └── MMP_Reclass_Allocations_YYYY_MM.xlsx
-├── MMP_Reclass_Ref/
-│   └── MMP_Reclass_Ref.xlsx   # Contract allocation reference file
-└── peoplesoft_invoice_processor.py  # Main processing script
+/
+├── peoplesoft_invoice_processor.py    # Main script
+├── PeopleSoft_Invoice_Reports/        # Data directories (created automatically)
+│   ├── raw_data/                      # Place raw invoice exports here
+│   ├── processed_reports/             # Output will be saved here (by month)
+│   └── MMP_Reclass_Ref/               # Reference data
+│       └── MMP_Reclass_Ref.xlsx       # Allocation percentages reference
+└── invoice_processor.log              # Log file (created when script runs)
 ```
 
-## 🚀 Getting Started
+## Required Data Format
 
-### Prerequisites
+### PeopleSoft Export Files
 
-- Python 3.7+
-- Required packages: pandas, xlsxwriter
+- Excel files exported from PeopleSoft
+- Must include the following fields:
+  - Journal Date
+  - Invoice identifier
+  - Source (AP2 or COR)
+  - Contract (8986 or 8999)
+  - Line Descr (description of the invoice line)
+  - Amount
+  - AP Amount
 
-### Installation
+### MMP Reference File
 
-```bash
-# Clone this repository
-git clone https://github.com/yourusername/invoice-accrual-automation.git
+- Located at `PeopleSoft_Invoice_Reports/MMP_Reclass_Ref/MMP_Reclass_Ref.xlsx`
+- Must contain columns for `State`, `Contract`, and `% of Payments`
+- Must include a row with `State` value of "Total"
+- Must include a row with `Contract` value of "Subset"
 
-# Navigate to the project directory
-cd invoice-accrual-automation
-
-# Install required packages
-pip install pandas xlsxwriter
-```
-
-### PeopleSoft Query Instructions
+## PeopleSoft Query Instructions
 
 Use the following parameters to pull the monthly data:
 
-- **UNIT**: XXXXX
-- **YEAR**: [Enter Year]
-- **BEG PERIOD**: [Enter Month Number]
-- **END PERIOD**: [Enter Month Number]
-- **ACCOUNT**: XXXX
-- **DEPT**: XXX
-- **CONTRACT**: %
-- **PRODUCT**: %
+- UNIT: XXXXX
+- YEAR: [Enter Year]
+- BEG PERIOD: [Enter Month Number]
+- END PERIOD: [Enter Month Number]
+- ACCOUNT: XXXX
+- DEPT: XXX
+- CONTRACT: %
+- PRODUCT: %
 
-Save the file as Excel and place it in the `raw_data/` folder. The script will automatically process the most recent file.
+Then save the file as Excel and drop it into the `raw_data/` folder. The script will process the latest file automatically.
 
-### Running the Process
+## Output Details
 
-```bash
-python peoplesoft_invoice_processor.py
-```
-
-## 📊 Output Reports
-
-Each monthly processing run generates two professional Excel reports:
-
-### 1. Invoice Report (`Invoice_Report_YYYY_MM.xlsx`)
-
-<img src="https://via.placeholder.com/800x400?text=Invoice+Report+Screenshot" alt="Invoice Report" width="90%">
+### Invoice Report (`Invoice_Report_YYYY_MM.xlsx`)
 
 - **Summary Sheet**: 
   - Aggregated totals by invoice category with professional formatting
@@ -90,16 +98,13 @@ Each monthly processing run generates two professional Excel reports:
   - Complete processed dataset with categorizations
   - Column filtering for easy data analysis
   - Proper currency formatting
-  - Frozen header row for easier navigation
 
 - **Flags Sheet**: 
   - Potential issues - duplicates and statistical outliers
   - Special header with description
   - Color-coded for immediate attention
 
-### 2. MMP Allocation Report (`MMP_Reclass_Allocations_YYYY_MM.xlsx`)
-
-<img src="https://via.placeholder.com/800x400?text=MMP+Allocation+Report+Screenshot" alt="MMP Allocation Report" width="90%">
+### MMP Allocation Report (`MMP_Reclass_Allocations_YYYY_MM.xlsx`)
 
 - **MMP Allocation Sheet**: 
   - Professional title and formatting
@@ -108,7 +113,32 @@ Each monthly processing run generates two professional Excel reports:
   - Legend explaining color coding
   - Summary information section
 
-## 🧪 Sample Data
+## Invoice Categorization Logic
+
+The script categorizes invoices based on the following rules:
+
+| Source | Contract | Amount     | Category Label        |
+|--------|----------|------------|----------------------|
+| AP2    | 8986     | Any        | Charts & Coding      |
+| AP2    | 8999     | Any        | Misc. exp.           |
+| COR    | 8986     | Negative   | 8986 Coupa Reversal  |
+| COR    | 8986     | Positive   | 8986 Coupa Pending   |
+| COR    | 8999     | Negative   | 8999 Coupa Reversal  |
+| COR    | 8999     | Positive   | 8999 Coupa Pending   |
+
+## Usage Instructions
+
+```bash
+python peoplesoft_invoice_processor.py
+```
+
+This will:
+- Find the most recent invoice file in the raw_data directory
+- Process and categorize all invoice data
+- Generate formatted reports in the processed_reports directory
+- Show a summary of processed data
+
+## Sample Data
 
 This repository includes sample data files to demonstrate the pipeline:
 
@@ -117,36 +147,12 @@ This repository includes sample data files to demonstrate the pipeline:
 
 These can be used to test the script and understand the expected input/output formats without requiring real data.
 
-### How to Use Sample Data
+## Dependencies
 
-1. Copy the sample files to their respective directories:
-   ```bash
-   cp sample_data_invoice.xlsx PeopleSoft_Invoice_Reports/raw_data/
-   cp sample_data_mmp_ref.xlsx PeopleSoft_Invoice_Reports/MMP_Reclass_Ref/MMP_Reclass_Ref.xlsx
-   ```
+- Python 3.7+
+- pandas
+- xlsxwriter
 
-2. Run the processor:
-   ```bash
-   python peoplesoft_invoice_processor.py
-   ```
-
-3. Check the `PeopleSoft_Invoice_Reports/processed_reports/` directory for the generated output files.
-
-## 🛠️ Technical Implementation
-
-- **Python 3**: Core programming language
-- **pandas**: Data manipulation and analysis
-- **xlsxwriter**: Advanced Excel report generation
-- **Object-oriented design**: Modular, maintainable code structure
-
-## ⚠️ Disclaimer
+## Disclaimer
 
 This project contains **sample data only** and does not expose any real vendors, contracts, or PHI. All logic and structure are generic and anonymized for demonstration purposes.
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 👤 Author
-
-Your Name
