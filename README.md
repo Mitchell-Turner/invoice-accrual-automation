@@ -57,7 +57,7 @@ A specialized component that handles MMP reclass calculations:
   - Journal Date
   - Invoice identifier
   - Source (AP2 or COR)
-  - Contract (8986 or 8999)
+  - Contract (1111 or 2222)
   - Line Descr (description of the invoice line)
   - Amount
   - AP Amount
@@ -119,12 +119,12 @@ The script categorizes invoices based on the following rules:
 
 | Source | Contract | Amount     | Category Label        |
 |--------|----------|------------|----------------------|
-| AP2    | 8986     | Any        | Charts & Coding      |
-| AP2    | 8999     | Any        | Misc. exp.           |
-| COR    | 8986     | Negative   | 8986 Coupa Reversal  |
-| COR    | 8986     | Positive   | 8986 Coupa Pending   |
-| COR    | 8999     | Negative   | 8999 Coupa Reversal  |
-| COR    | 8999     | Positive   | 8999 Coupa Pending   |
+| AP2    | 1111     | Any        | Charts & Coding      |
+| AP2    | 2222     | Any        | Misc. exp.           |
+| COR    | 1111     | Negative   | 1111 Coupa Reversal  |
+| COR    | 1111     | Positive   | 1111 Coupa Pending   |
+| COR    | 2222     | Negative   | 2222 Coupa Reversal  |
+| COR    | 2222     | Positive   | 2222 Coupa Pending   |
 
 ## Usage Instructions
 
