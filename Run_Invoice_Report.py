@@ -27,6 +27,20 @@ logging.basicConfig(
 )
 logger = logging.getLogger("invoice_processor")
 
+
+# ANSI Color codes for console output
+class Colors:
+    PINK = '\033[38;5;219m'  # Pastel Pink
+    BLUE = '\033[38;5;153m'  # Pastel Blue
+    GREEN = '\033[38;5;157m'  # Pastel Green
+    YELLOW = '\033[38;5;229m'  # Pastel Yellow
+    PURPLE = '\033[38;5;183m'  # Pastel Purple
+    CYAN = '\033[38;5;159m'  # Pastel Cyan
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+    END = '\033[0m'  # Reset
+
+
 # Constants for configuration
 REQUIRED_CONTRACTS = [1111, 2222]
 EXCLUDED_LINE_DESCRIPTIONS = ["MSG Chart Expense", "MSG Misc Chart Expense"]
@@ -161,10 +175,15 @@ class InvoiceProcessor:
         )
 
         # Log the counts of each category
-        category_counts = self.invoice_df['Label'].value_counts()
-        logger.info("Invoice categories:")
+        category_counts = self.invoice_df['Label'].value_counts().sort_index()
+        logger.info("\n" + "-" * 50)
+        logger.info(f"{Colors.BLUE}INVOICE CATEGORIES SUMMARY:{Colors.END}")
+        logger.info("-" * 50)
+        logger.info(f"{Colors.YELLOW}{'Category':<25s} {'Count':>10s}{Colors.END}")
+        logger.info("-" * 50)
         for category, count in category_counts.items():
-            logger.info(f"  - {category}: {count}")
+            logger.info(f"{category:<25s} {count:>10d}")
+        logger.info("-" * 50)
 
     def create_summary(self):
         """
@@ -173,9 +192,13 @@ class InvoiceProcessor:
         self.summary_df = self.invoice_df.groupby('Label')['Value Used'].sum().reset_index()
         self.summary_df.columns = ['Label', 'Total']
 
-        logger.info("Summary totals by category:")
+        # Format the summary for logging
+        logger.info("\n" + "-" * 50)
+        logger.info(f"{Colors.PINK}SUMMARY TOTALS BY CATEGORY:{Colors.END}")
+        logger.info("-" * 50)
         for _, row in self.summary_df.iterrows():
-            logger.info(f"  - {row['Label']}: ${row['Total']:,.2f}")
+            logger.info(f"{row['Label']:.<30s} {Colors.GREEN}${row['Total']:>15,.2f}{Colors.END}")
+        logger.info("-" * 50)
 
     def identify_flags(self):
         """
@@ -191,8 +214,14 @@ class InvoiceProcessor:
         # Combine flagged items
         self.flags_df = pd.concat([duplicates, outliers]).drop_duplicates()
 
-        logger.info(f"Flagged {len(duplicates)} duplicate invoices")
-        logger.info(f"Flagged {len(outliers)} outliers (above ${abs_value_threshold:,.2f})")
+        # Format the flags summary
+        logger.info("\n" + "-" * 50)
+        logger.info(f"{Colors.YELLOW}FLAGGED ITEMS SUMMARY:{Colors.END}")
+        logger.info("-" * 50)
+        logger.info(f"Duplicate invoices: {Colors.PURPLE}{len(duplicates)}{Colors.END}")
+        logger.info(f"Outliers (>${abs_value_threshold:,.2f}): {Colors.PURPLE}{len(outliers)}{Colors.END}")
+        logger.info(f"Total flagged items: {Colors.PURPLE}{len(self.flags_df)}{Colors.END}")
+        logger.info("-" * 50)
 
     def process_mmp_allocation(self):
         """
@@ -202,9 +231,21 @@ class InvoiceProcessor:
             FileNotFoundError: If MMP reference file is not found
             Exception: For other processing errors
         """
-        logger.info("Processing MMP reclass allocation...")
+        logger.info("\n" + "-" * 50)
+        logger.info(f"{Colors.CYAN}PROCESSING MMP RECLASS ALLOCATION:{Colors.END}")
+        logger.info("-" * 50)
 
         try:
+            # Check if the summary DataFrame is empty
+            if self.summary_df.empty:
+                logger.warning(f"{Colors.YELLOW}No data available for MMP allocation - summary is empty{Colors.END}")
+                return
+
+            # Check if "Charts & Coding" category exists
+            if "Charts & Coding" not in self.summary_df["Label"].values:
+                logger.warning(f"{Colors.YELLOW}No \"Charts & Coding\" category found in summary{Colors.END}")
+                return
+
             # Load the MMP reference data
             self.mmp_ref_df = pd.read_excel(self.mmp_ref_path, converters={'% of Payments': float})
 
@@ -212,8 +253,6 @@ class InvoiceProcessor:
             self.charts_total = self.summary_df.loc[
                 self.summary_df['Label'] == 'Charts & Coding', 'Total'
             ].values[0]
-
-            logger.info(f"Charts & Coding Total: ${self.charts_total:,.2f}")
 
             # Calculate payment allocations based on percentages
             self.mmp_ref_df['Payment Allocation'] = self.mmp_ref_df['% of Payments'] * self.charts_total
@@ -225,7 +264,6 @@ class InvoiceProcessor:
 
             # Add to summary
             self.summary_df.loc[len(self.summary_df.index)] = ['Total MMP Reclass', subset_alloc]
-            logger.info(f"Reclass (Subset) Allocation: ${subset_alloc:,.2f}")
 
             # Calculate adjusted allocation
             total_alloc = self.mmp_ref_df.loc[
@@ -237,7 +275,19 @@ class InvoiceProcessor:
                 self.mmp_ref_df['State'] == 'Adjusted', 'Payment Allocation'
             ] = adjusted_value
 
-            logger.info(f"Adjusted Allocation: ${adjusted_value:,.2f}")
+            # Log the MMP allocation summary
+            logger.info(f"{'Charts & Coding Total:':<30s} {Colors.GREEN}${self.charts_total:>15,.2f}{Colors.END}")
+            logger.info(f"{'Reclass (Subset) Allocation:':<30s} {Colors.GREEN}${subset_alloc:>15,.2f}{Colors.END}")
+            logger.info(f"{'Total Allocation:':<30s} {Colors.GREEN}${total_alloc:>15,.2f}{Colors.END}")
+            logger.info(f"{'Adjusted Allocation:':<30s} {Colors.GREEN}${adjusted_value:>15,.2f}{Colors.END}")
+            logger.info("-" * 50)
+
+        except FileNotFoundError:
+            logger.error(f"{Colors.YELLOW}MMP Reclass reference not found at: {self.mmp_ref_path}{Colors.END}")
+            raise
+        except Exception as e:
+            logger.error(f"{Colors.YELLOW}Error processing MMP allocation: {str(e)}{Colors.END}")
+            raise
 
         except FileNotFoundError:
             logger.error(f"MMP Reclass reference not found at: {self.mmp_ref_path}")
@@ -286,6 +336,12 @@ class InvoiceProcessor:
                 worksheet = writer.sheets["MMP Allocation"]
 
                 # Define formats
+                header_fmt = workbook.add_format({
+                    'bold': True,
+                    'fg_color': '#E6E6FA',  # Pastel lavender
+                    'align': 'center',
+                    'border': 1
+                })
                 percent_fmt = workbook.add_format({'num_format': '0.00%', 'align': 'center'})
                 currency_fmt = workbook.add_format({'num_format': '$#,##0', 'align': 'right'})
                 gray_fmt = workbook.add_format({
@@ -301,13 +357,27 @@ class InvoiceProcessor:
                 yellow_fmt = workbook.add_format({
                     'num_format': '$#,##0',
                     'align': 'right',
-                    'bg_color': '#FFFACD'
+                    'bg_color': '#FFFACD'  # Pastel yellow
                 })
                 yellow_pct_fmt = workbook.add_format({
                     'num_format': '0.00%',
                     'align': 'center',
-                    'bg_color': '#FFFACD'
+                    'bg_color': '#FFFACD'  # Pastel yellow
                 })
+
+                # Apply header format
+                for col_num, value in enumerate(self.mmp_ref_df.columns.values):
+                    worksheet.write(0, col_num, value, header_fmt)
+
+                # Auto-adjust column widths based on content
+                for i, col in enumerate(self.mmp_ref_df.columns):
+                    # Find the maximum length in the column
+                    max_len = max(
+                        self.mmp_ref_df[col].astype(str).map(len).max(),
+                        len(str(col))
+                    )
+                    # Add a little extra space
+                    worksheet.set_column(i, i, max_len + 2)
 
                 # Get column indexes
                 percent_col = self.mmp_ref_df.columns.get_loc('% of Payments')
@@ -339,20 +409,97 @@ class InvoiceProcessor:
         """
         try:
             with pd.ExcelWriter(file_path, engine='xlsxwriter') as writer:
+                workbook = writer.book
+
+                # Define formats
+                header_fmt = workbook.add_format({
+                    'bold': True,
+                    'align': 'center',
+                    'border': 1
+                })
+                summary_header_fmt = workbook.add_format({
+                    'bold': True,
+                    'fg_color': '#FFD1DC',  # Pastel pink
+                    'align': 'center',
+                    'border': 1
+                })
+                data_header_fmt = workbook.add_format({
+                    'bold': True,
+                    'fg_color': '#CCFFCC',  # Pastel green
+                    'align': 'center',
+                    'border': 1
+                })
+                flags_header_fmt = workbook.add_format({
+                    'bold': True,
+                    'fg_color': '#FFFFCC',  # Pastel yellow
+                    'align': 'center',
+                    'border': 1
+                })
+                currency_fmt = workbook.add_format({'num_format': '$#,##0.00'})
+
                 # Summary sheet
                 self.summary_df.to_excel(writer, sheet_name="Summary", index=False)
                 summary_ws = writer.sheets["Summary"]
 
+                # Apply header format to Summary sheet
+                for col_num, value in enumerate(self.summary_df.columns.values):
+                    summary_ws.write(0, col_num, value, summary_header_fmt)
+
+                # Auto-adjust column widths for Summary sheet
+                for i, col in enumerate(self.summary_df.columns):
+                    # Find the maximum length in the column
+                    max_len = max(
+                        self.summary_df[col].astype(str).map(len).max(),
+                        len(str(col))
+                    )
+                    # Add a little extra space
+                    summary_ws.set_column(i, i, max_len + 2)
+
                 # Format currency in summary
                 total_col_idx = self.summary_df.columns.get_loc('Total')
-                currency_fmt = writer.book.add_format({'num_format': '$#,##0.00'})
                 summary_ws.set_column(total_col_idx, total_col_idx, None, currency_fmt)
 
                 # Full data sheet
                 self.invoice_df.to_excel(writer, sheet_name="Full Data", index=False)
+                data_ws = writer.sheets["Full Data"]
+
+                # Apply header format to Full Data sheet
+                for col_num, value in enumerate(self.invoice_df.columns.values):
+                    data_ws.write(0, col_num, value, data_header_fmt)
+
+                # Auto-adjust column widths for Full Data sheet
+                for i, col in enumerate(self.invoice_df.columns):
+                    # For large datasets, use a sample to determine width
+                    column_data = self.invoice_df[col].astype(str)
+                    # Consider only a sample of the data to avoid slow performance on large datasets
+                    if len(column_data) > 100:
+                        sample = column_data.sample(100).map(len)
+                        max_len = max(sample.max(), len(str(col)))
+                    else:
+                        max_len = max(column_data.map(len).max(), len(str(col)))
+                    # Set a reasonable limit to column width
+                    col_width = min(max_len + 2, 50)  # Limit to 50 characters
+                    data_ws.set_column(i, i, col_width)
 
                 # Flags sheet
                 self.flags_df.to_excel(writer, sheet_name="Flags", index=False)
+                flags_ws = writer.sheets["Flags"]
+
+                # Apply header format to Flags sheet
+                for col_num, value in enumerate(self.flags_df.columns.values):
+                    flags_ws.write(0, col_num, value, flags_header_fmt)
+
+                # Auto-adjust column widths for Flags sheet
+                for i, col in enumerate(self.flags_df.columns):
+                    if not self.flags_df.empty:
+                        max_len = max(
+                            self.flags_df[col].astype(str).map(len).max(),
+                            len(str(col))
+                        )
+                        col_width = min(max_len + 2, 50)  # Limit to 50 characters
+                    else:
+                        col_width = len(str(col)) + 2
+                    flags_ws.set_column(i, i, col_width)
 
             logger.info(f"Saved main report file: {file_path}")
         except Exception as e:
@@ -370,6 +517,11 @@ class InvoiceProcessor:
             # Step 1: Find and load the latest invoice file
             latest_file_path = self.find_latest_invoice_file()
             self.load_invoice_data(latest_file_path)
+
+            # Check if we have data to process
+            if self.invoice_df.empty:
+                logger.warning("No data available after filtering. Ensure your data contains contracts 1111 and 2222.")
+                raise ValueError("No data available after filtering. Check the contract numbers in your data.")
 
             # Step 2: Process the data
             self.categorize_invoices()
@@ -405,12 +557,14 @@ def main():
 
     # Print startup information
     print("\n" + "=" * 60)
-    print(f"PeopleSoft Invoice Report Processor")
+    print(f"{Colors.BLUE}{Colors.BOLD}{'PEOPLESOFT INVOICE REPORT PROCESSOR':^60}{Colors.END}")
     print("=" * 60)
-    print(f"Raw data directory: {raw_data_dir}")
-    print(f"Output directory: {processed_root}")
-    print(f"MMP reference file: {mmp_ref_path}")
-    print("-" * 60 + "\n")
+    print(f"{Colors.PINK}{Colors.BOLD}{'CONFIGURATION':^60}{Colors.END}")
+    print("-" * 60)
+    print(f"{Colors.YELLOW}{'Raw data directory:':<25}{Colors.END} {raw_data_dir}")
+    print(f"{Colors.YELLOW}{'Output directory:':<25}{Colors.END} {processed_root}")
+    print(f"{Colors.YELLOW}{'MMP reference file:':<25}{Colors.END} {mmp_ref_path}")
+    print("=" * 60 + "\n")
 
     try:
         # Create and run the processor
@@ -419,17 +573,23 @@ def main():
 
         # Print success message
         print("\n" + "=" * 60)
-        print("✅ Processing completed successfully!")
+        print(f"{Colors.BLUE}{Colors.BOLD}{'PROCESSING SUMMARY':^60}{Colors.END}")
+        print("=" * 60)
+        print(f"{Colors.YELLOW}{'STATUS:':<15}{Colors.END} {Colors.GREEN}{'COMPLETED SUCCESSFULLY':>45}{Colors.END}")
         print("-" * 60)
-        print(f"📊 Main report: {report_path}")
-        print(f"📈 MMP allocation: {mmp_path}")
+        print(f"{Colors.CYAN}{'Main report:':<15}{Colors.END} {report_path}")
+        print(f"{Colors.CYAN}{'MMP allocation:':<15}{Colors.END} {mmp_path}")
         print("=" * 60 + "\n")
 
         return 0
     except Exception as e:
         # Print error message
         print("\n" + "=" * 60)
-        print(f"❌ Processing failed: {str(e)}")
+        print(f"{Colors.BLUE}{Colors.BOLD}{'PROCESSING SUMMARY':^60}{Colors.END}")
+        print("=" * 60)
+        print(f"{Colors.YELLOW}{'STATUS:':<15}{Colors.END} {Colors.PINK}{'FAILED':>45}{Colors.END}")
+        print("-" * 60)
+        print(f"{Colors.PURPLE}{'Error:':<15}{Colors.END} {str(e)}")
         print("=" * 60 + "\n")
 
         return 1
